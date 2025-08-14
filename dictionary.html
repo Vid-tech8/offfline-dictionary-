@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Offline Dictionary — Pro</title>
+<meta name="theme-color" content="#0b5bd3" />
+<style>
+  :root{
+    --bg:#f7f9fc;
+    --surface:#ffffff;
+    --text:#0b1220;
+    --muted:#5b6b87;
+    --primary:#0b5bd3;
+    --primary-weak:#e7f0ff;
+    --border:#e6eaf2;
+    --accent:#2cc5a2;
+    --danger:#e14d4d;
+    --shadow:0 6px 16px rgba(10,40,80,.08);
+    --radius:14px;
+  }
+  html.dark{
+    --bg:#0b0f16;
+    --surface:#121826;
+    --text:#e9eefb;
+    --muted:#9bb0d1;
+    --primary:#7aa7ff;
+    --primary-weak:#1b2847;
+    --border:#1f2a3d;
+    --accent:#45e0c2;
+    --danger:#ff7070;
+    --shadow:0 10px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+    background:var(--bg); color:var(--text); letter-spacing:.2px;
+  }
+  header{
+    position:sticky; top:0; z-index:5;
+    background:linear-gradient(180deg,var(--surface),color-mix(in oklab,var(--surface), transparent 20%));
+    border-bottom:1px solid var(--border); box-shadow:var(--shadow);
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:20px}
+  .top{
+    display:flex; gap:14px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+  }
+  h1{font-size:22px; margin:0; display:flex; align-items:center; gap:10px}
+  h1 .dot{height:10px; width:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px color-mix(in oklab,var(--accent), transparent 70%)}
+  .actions{display:flex; gap:8px; flex-wrap:wrap}
+  button, .chip{
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:600;
+    box-shadow:var(--shadow); transition:.15s transform ease, .15s background ease, .15s border-color ease;
+  }
+  button:hover{transform:translateY(-1px)}
+  .primary{background:var(--primary); color:#fff; border-color:color-mix(in oklab,var(--primary), #000 10%)}
+  .ghost{background:transparent}
+  .danger{background:var(--danger); color:#fff; border-color:transparent}
+  .inputBar{
+    display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;
+  }
+  .field{
+    position:relative; flex:1 1 340px;
+  }
+  input[type="text"], textarea{
+    width:100%; background:var(--surface); color:var(--text);
+    border:1px solid var(--border); border-radius:14px; padding:14px 44px 14px 14px;
+    outline:none; font-size:16px; box-shadow:var(--shadow);
+  }
+  .field .icon{
+    position:absolute; right:12px; top:50%; translate:0 -50%; opacity:.7; pointer-events:none;
+  }
+  .grid{
+    display:grid; gap:14px; grid-template-columns: 1fr; margin-top:18px;
+  }
+  @media (min-width:920px){ .grid{ grid-template-columns: 360px 1fr; } }
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px;
+  }
+  .list{max-height:68vh; overflow:auto}
+  .word{
+    display:flex; justify-content:space-between; align-items:start; gap:12px; padding:10px 12px; border-radius:12px; cursor:pointer;
+    border:1px solid transparent;
+  }
+  .word:hover{background:var(--primary-weak)}
+  .word .w{font-weight:700}
+  .badge{font-size:12px; padding:3px 8px; border-radius:999px; background:var(--primary-weak); color:var(--primary)}
+  .muted{color:var(--muted)}
+  .stack{display:flex; gap:8px; flex-wrap:wrap}
+  .detail h2{margin:.2rem 0 .4rem 0}
+  .row{display:flex; gap:8px; flex-wrap:wrap}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px}
+  .footer{margin-top:18px; font-size:12px}
+  .kbd{border:1px solid var(--border); padding:2px 6px; border-radius:6px; background:var(--surface); box-shadow:var(--shadow)}
+  .hidden{display:none !important}
+  .hr{height:1px; background:var(--border); margin:10px 0}
+  .pill{border:1px dashed var(--border); padding:12px; border-radius:12px}
+  .grow{flex:1}
+  a{color:var(--primary); text-decoration:none}
+  .tblock{display:grid; gap:8px; margin-top:6px}
+  .langline{display:grid; gap:4px}
+  .langname{font-weight:700}
+  .tsent{font-style:italic}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1><span class="dot"></span> Offline Dictionary</h1>
+      <div class="actions">
+        <button id="toggleTheme" title="Dark / Light (T)">🌗 Theme</button>
+        <button id="voiceSearch" class="primary" title="Voice Search (V)">🎤 Voice</button>
+        <button id="speakBtn" title="Read Definition (R)">🔊 Speak</button>
+        <button id="addBtn" title="Add Word (A)">➕ Add</button>
+        <button id="exportBtn" class="ghost" title="Export JSON">⬇️ Export</button>
+        <label class="chip" title="Import JSON">
+          ⬆️ Import
+          <input id="importInput" type="file" accept=".json" class="hidden" />
+        </label>
+        <button id="resetBtn" class="danger" title="Reset to Built-in Data">♻️ Reset</button>
+      </div>
+    </div>
+
+    <div class="inputBar">
+      <div class="field">
+        <input id="searchBox" type="text" placeholder="Search word… (e.g., agile, candid, lucid)" autocomplete="off" />
+        <span class="icon">⌕</span>
+      </div>
+      <div class="stack">
+        <span class="chip">Tips: <span class="kbd">/</span> focus • <span class="kbd">↑↓</span> navigate • <span class="kbd">Enter</span> open</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <section class="card list" id="listPane" aria-label="Word list"></section>
+
+    <section class="card detail" id="detailPane" aria-live="polite">
+      <h2 id="dWord">Welcome 👋</h2>
+      <div class="muted">Use the search box or voice to find a word. Add your own entries — everything is saved offline.</div>
+      <div class="hr"></div>
+      <div class="pill">
+        <strong>Great demo situations:</strong>
+        <ul>
+          <li>📶 Areas with poor or no connectivity (hostels, rural fieldwork, flights)</li>
+          <li>🏫 Classroom/college labs with restricted internet</li>
+          <li>📝 Exam prep and interview prep on a locked-down laptop</li>
+          <li>🧑‍🏫 Internal team glossaries (project acronyms, domain terms) without sharing data online</li>
+          <li>🔐 Privacy-first use: nothing leaves your device</li>
+        </ul>
+      </div>
+      <div class="footer muted">
+        Keyboard: <span class="kbd">T</span> theme • <span class="kbd">V</span> voice • <span class="kbd">R</span> speak • <span class="kbd">A</span> add • <span class="kbd">Esc</span> clear
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- App Script (inline; no internet needed) -->
+<script>
+/* =========================
+   Utility + Storage Layer
+   ========================= */
+const LS_KEY = "offline_dictionary_entries_v2";
+
+function getSavedEntries(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  }catch{ return null; }
+}
+function saveEntries(entries){
+  localStorage.setItem(LS_KEY, JSON.stringify(entries));
+}
+function resetToBuiltIn(){
+  localStorage.removeItem(LS_KEY);
+  state.entries = [...BUILT_IN_ENTRIES];
+  renderList();
+  if(state.entries.length) selectIndex(0);
+}
+
+function normLang(obj){
+  const o = typeof obj === "object" && obj ? obj : {};
+  return {
+    translation: String(o.translation ?? "").trim(),
+    sentence: String(o.sentence ?? "").trim()
+  };
+}
+function normalizeEntry(e){
+  return {
+    word: String(e.word || "").trim(),
+    meaning: String(e.meaning || "").trim(),
+    example: String(e.example || "").trim(),
+    hindi: normLang(e.hindi),
+    french: normLang(e.french),
+    german: normLang(e.german),
+    tags: Array.isArray(e.tags) ? e.tags.slice(0,3).map(t=>String(t)) : []
+  };
+}
+
+/* =========================
+   Built-in Compact Dictionary
+   (unchanged content; no translations prefilled as requested)
+   ========================= */
+const BUILT_IN_ENTRIES = [
+  {word:"abrupt", meaning:"Sudden and unexpected; without preparation or warning.", example:"The meeting ended with an abrupt decision.", tags:["adjective"]},
+  {word:"acknowledge", meaning:"To accept or admit the existence or truth of something.", example:"She acknowledged her mistake and apologized.", tags:["verb"]},
+  {word:"adapt", meaning:"To adjust to new conditions or a new environment.", example:"Plants adapt to low light by growing larger leaves.", tags:["verb"]},
+  {word:"adequate", meaning:"Satisfactory or acceptable in quality or quantity.", example:"We have adequate supplies for the trip.", tags:["adjective"]},
+  {word:"adjacent", meaning:"Next to or adjoining something else.", example:"Their apartment is adjacent to the elevator.", tags:["adjective"]},
+  {word:"advocate", meaning:"A person who publicly supports a cause; or to publicly support.", example:"She is an advocate for animal welfare.", tags:["noun","verb"]},
+  {word:"aesthetic", meaning:"Concerned with beauty or the appreciation of beauty.", example:"The room’s minimalist aesthetic felt calming.", tags:["adjective"]},
+  {word:"agile", meaning:"Able to move quickly and easily; quick to think and adapt.", example:"An agile team responded to changes within a day.", tags:["adjective"]},
+  {word:"alleviate", meaning:"To make suffering or a problem less severe.", example:"A short walk can alleviate stress.", tags:["verb"]},
+  {word:"ambiguous", meaning:"Open to more than one interpretation; unclear.", example:"The ambiguous email caused confusion.", tags:["adjective"]},
+  {word:"ambitious", meaning:"Having a strong desire to succeed.", example:"He set ambitious goals for the quarter.", tags:["adjective"]},
+  {word:"ample", meaning:"More than enough; plentiful.", example:"There was ample parking near the venue.", tags:["adjective"]},
+  {word:"analogy", meaning:"A comparison that shows similarities between two things.", example:"The teacher used an analogy to explain circuits.", tags:["noun"]},
+  {word:"analyze", meaning:"To examine in detail for purposes of explanation.", example:"Let’s analyze the survey results carefully.", tags:["verb"]},
+  {word:"anticipate", meaning:"To expect or look ahead to something.", example:"We anticipate delays due to the weather.", tags:["verb"]},
+  {word:"anxiety", meaning:"Feeling of worry, nervousness, or unease.", example:"He felt anxiety before the presentation.", tags:["noun"]},
+  {word:"appease", meaning:"To calm or pacify by giving in to demands.", example:"They offered a refund to appease the customer.", tags:["verb"]},
+  {word:"apprentice", meaning:"A person learning a trade from a skilled employer.", example:"The apprentice studied under a master carpenter.", tags:["noun"]},
+  {word:"arbitrary", meaning:"Based on random choice rather than reason.", example:"The rules seemed arbitrary to the team.", tags:["adjective"]},
+  {word:"articulate", meaning:"Able to express ideas clearly; or to express clearly.", example:"She is articulate and persuasive in meetings.", tags:["adjective","verb"]},
+  {word:"ascertain", meaning:"To find something out for certain; make sure of.", example:"We must ascertain the root cause first.", tags:["verb"]},
+  {word:"assert", meaning:"To state a fact or belief confidently.", example:"He asserted his right to speak.", tags:["verb"]},
+  {word:"assess", meaning:"To evaluate or estimate the nature or ability of.", example:"We will assess the risks before launching.", tags:["verb"]},
+  {word:"attain", meaning:"To succeed in achieving a goal.", example:"The team attained record uptime this year.", tags:["verb"]},
+  {word:"authentic", meaning:"Genuine; real; true to its origins.", example:"The restaurant serves authentic regional dishes.", tags:["adjective"]},
+  {word:"avid", meaning:"Having or showing enthusiasm for something.", example:"She is an avid reader of history.", tags:["adjective"]},
+  {word:"benevolent", meaning:"Well-meaning and kindly.", example:"A benevolent donor funded the shelter.", tags:["adjective"]},
+  {word:"bias", meaning:"Prejudice in favor of or against something.", example:"Awareness training helps reduce bias.", tags:["noun"]},
+  {word:"blatant", meaning:"Open and unashamed; obvious.", example:"A blatant error slipped into the report.", tags:["adjective"]},
+  {word:"brevity", meaning:"Concise use of words; shortness of time.", example:"Brevity is valued in status updates.", tags:["noun"]},
+  {word:"candid", meaning:"Truthful and straightforward; frank.", example:"She gave a candid review of the prototype.", tags:["adjective"]},
+  {word:"capable", meaning:"Having the ability or qualities necessary.", example:"He is capable of leading the project.", tags:["adjective"]},
+  {word:"catalyst", meaning:"Something that speeds up a process.", example:"The grant became a catalyst for innovation.", tags:["noun"]},
+  {word:"cautious", meaning:"Careful to avoid risks.", example:"Investors are cautious during uncertainty.", tags:["adjective"]},
+  {word:"coerce", meaning:"To persuade by force or threats.", example:"No one should be coerced into signing.", tags:["verb"]},
+  {word:"coherent", meaning:"Logical and consistent.", example:"Please present a coherent argument.", tags:["adjective"]},
+  {word:"coincide", meaning:"To occur at the same time; match exactly.", example:"The release will coincide with the conference.", tags:["verb"]},
+  {word:"collaborate", meaning:"Work jointly on an activity.", example:"We collaborate across design and engineering.", tags:["verb"]},
+  {word:"commodity", meaning:"A raw material or primary product; useful thing.", example:"Water is a precious commodity in deserts.", tags:["noun"]},
+  {word:"compassion", meaning:"Sympathetic pity and concern for others.", example:"She treated stray animals with compassion.", tags:["noun"]},
+  {word:"competent", meaning:"Having necessary ability, knowledge, or skill.", example:"A competent mentor can accelerate growth.", tags:["adjective"]},
+  {word:"complement", meaning:"Something that completes or goes well with another.", example:"The side salad complements the pasta.", tags:["noun"]},
+  {word:"comprehensive", meaning:"Complete and including all elements.", example:"We need a comprehensive test plan.", tags:["adjective"]},
+  {word:"conceal", meaning:"To keep from sight; hide.", example:"Clouds concealed the mountain peak.", tags:["verb"]},
+  {word:"concise", meaning:"Giving a lot of information clearly and briefly.", example:"Write concise commit messages.", tags:["adjective"]},
+  {word:"concur", meaning:"To agree or be of the same opinion.", example:"The reviewers concur with the findings.", tags:["verb"]},
+  {word:"condone", meaning:"To accept behavior considered wrong or offensive.", example:"We cannot condone abusive language.", tags:["verb"]},
+  {word:"consolidate", meaning:"To combine into a single, more effective whole.", example:"We consolidated three tools into one.", tags:["verb"]},
+  {word:"conspicuous", meaning:"Clearly visible; attracting notice.", example:"Her bright jacket was conspicuous in the crowd.", tags:["adjective"]},
+  {word:"constructive", meaning:"Serving a useful purpose; helpful.", example:"Thanks for the constructive feedback.", tags:["adjective"]},
+  {word:"contemplate", meaning:"To think about deeply and for a long time.", example:"She contemplated switching careers.", tags:["verb"]},
+  {word:"contend", meaning:"To struggle to surmount; assert in an argument.", example:"They contend the policy is unfair.", tags:["verb"]},
+  {word:"context", meaning:"The circumstances forming the setting of an event.", example:"Meaning changes outside its context.", tags:["noun"]},
+  {word:"convey", meaning:"To communicate or make known.", example:"Slides should convey the key message fast.", tags:["verb"]},
+  {word:"credible", meaning:"Able to be believed; convincing.", example:"Please cite credible sources.", tags:["adjective"]},
+  {word:"crucial", meaning:"Decisive or critical.", example:"Backups are crucial for recovery.", tags:["adjective"]},
+  {word:"cumulative", meaning:"Increasing by successive additions.", example:"Cumulative debt became unmanageable.", tags:["adjective"]},
+  {word:"cynical", meaning:"Distrustful of human sincerity or integrity.", example:"A cynical remark ended the debate.", tags:["adjective"]},
+  {word:"daunting", meaning:"Seeming difficult to deal with; intimidating.", example:"The migration looked daunting at first.", tags:["adjective"]},
+  {word:"debate", meaning:"A formal discussion; argue about.", example:"We debated the pros and cons of remote work.", tags:["noun","verb"]},
+  {word:"decisive", meaning:"Settling an issue; producing a definite result.", example:"Her decisive actions saved time.", tags:["adjective"]},
+  {word:"deduce", meaning:"To arrive at a fact by reasoning.", example:"From the logs, we deduced the outage cause.", tags:["verb"]},
+  {word:"deficit", meaning:"The amount by which something is too small.", example:"Sleep deficit affects focus.", tags:["noun"]},
+  {word:"defer", meaning:"Put off to a later time; postpone.", example:"We deferred the feature to Q4.", tags:["verb"]},
+  {word:"delineate", meaning:"To describe or portray precisely.", example:"Delineate the API boundaries.", tags:["verb"]},
+  {word:"denote", meaning:"To be a sign of; indicate.", example:"A red icon denotes an error.", tags:["verb"]},
+  {word:"depict", meaning:"Show or represent by a drawing or description.", example:"The chart depicts monthly usage.", tags:["verb"]},
+  {word:"derive", meaning:"Obtain something from a source.", example:"We derive insights from telemetry.", tags:["verb"]},
+  {word:"detrimental", meaning:"Tending to cause harm.", example:"Skipping reviews is detrimental to quality.", tags:["adjective"]},
+  {word:"diligent", meaning:"Showing care in one’s work or duties.", example:"A diligent student revised daily.", tags:["adjective"]},
+  {word:"diminish", meaning:"Make or become less.", example:"Noise diminished after the fix.", tags:["verb"]},
+  {word:"discrete", meaning:"Individually separate and distinct.", example:"Split tasks into discrete steps.", tags:["adjective"]},
+  {word:"disparity", meaning:"A great difference.", example:"There is a disparity in access to resources.", tags:["noun"]},
+  {word:"dispel", meaning:"Make a doubt or feeling disappear.", example:"Clear metrics dispelled concerns.", tags:["verb"]},
+  {word:"disrupt", meaning:"Interrupt by causing a disturbance.", example:"Maintenance will disrupt service briefly.", tags:["verb"]},
+  {word:"diverse", meaning:"Showing a great deal of variety.", example:"A diverse team sparks creativity.", tags:["adjective"]},
+  {word:"docile", meaning:"Ready to accept control or instruction; submissive.", example:"The docile puppy followed commands.", tags:["adjective"]},
+  {word:"eloquent", meaning:"Fluent or persuasive speaking or writing.", example:"Her eloquent pitch won the client.", tags:["adjective"]},
+  {word:"elusive", meaning:"Difficult to find or achieve.", example:"A complete consensus remained elusive.", tags:["adjective"]},
+  {word:"emerge", meaning:"To become apparent or prominent.", example:"New patterns emerge from data.", tags:["verb"]},
+  {word:"empathy", meaning:"Ability to understand another’s feelings.", example:"Empathy improves customer support.", tags:["noun"]},
+  {word:"empirical", meaning:"Based on observation or experience.", example:"We need empirical evidence before shipping.", tags:["adjective"]},
+  {word:"endeavor", meaning:"An attempt to achieve a goal; try hard.", example:"They endeavor to reduce emissions.", tags:["noun","verb"]},
+  {word:"endorse", meaning:"Declare one’s public approval or support of.", example:"Experts endorsed the proposal.", tags:["verb"]},
+  {word:"engender", meaning:"Cause or give rise to.", example:"Trust engenders collaboration.", tags:["verb"]},
+  {word:"enhance", meaning:"Intensify or improve quality or value.", example:"We enhanced the UI performance.", tags:["verb"]},
+  {word:"entail", meaning:"Involve something as a necessary part.", example:"Migration entails downtime planning.", tags:["verb"]},
+  {word:"equitable", meaning:"Fair and impartial.", example:"Equitable access is a priority.", tags:["adjective"]},
+  {word:"erode", meaning:"Gradually wear away.", example:"Constant friction erodes patience.", tags:["verb"]},
+  {word:"erratic", meaning:"Not even or regular; unpredictable.", example:"Erratic signals indicate interference.", tags:["adjective"]},
+  {word:"escalate", meaning:"Increase rapidly; make more intense.", example:"We escalated the incident to L3.", tags:["verb"]},
+  {word:"evaluate", meaning:"Form an idea of the amount or value of.", example:"Let’s evaluate two vendors.", tags:["verb"]},
+  {word:"evident", meaning:"Plain or obvious; clearly seen.", example:"The benefits are evident to all.", tags:["adjective"]},
+  {word:"exacerbate", meaning:"Make a problem worse.", example:"Delay would exacerbate the backlog.", tags:["verb"]},
+  {word:"exemplify", meaning:"Be a typical example of.", example:"Her career exemplifies resilience.", tags:["verb"]},
+  {word:"exhaustive", meaning:"Including all possibilities; comprehensive.", example:"Run an exhaustive test suite.", tags:["adjective"]},
+  {word:"expedite", meaning:"Make an action happen sooner.", example:"We expedited approvals for the grant.", tags:["verb"]},
+  {word:"explicit", meaning:"Stated clearly and in detail.", example:"Provide explicit acceptance criteria.", tags:["adjective"]},
+  {word:"feasible", meaning:"Possible to do easily or conveniently.", example:"Is same-day delivery feasible?", tags:["adjective"]},
+  {word:"fickle", meaning:"Changing frequently, especially in loyalty or interests.", example:"Trends can be fickle on social media.", tags:["adjective"]},
+  {word:"fluctuate", meaning:"Rise and fall irregularly in number or amount.", example:"Traffic fluctuates during holidays.", tags:["verb"]},
+  {word:"formulate", meaning:"Create or devise methodically.", example:"We formulated a new retention plan.", tags:["verb"]},
+  {word:"fortify", meaning:"Strengthen defensively.", example:"Enable MFA to fortify security.", tags:["verb"]},
+  {word:"frivolous", meaning:"Not having serious purpose or value.", example:"Avoid frivolous meetings.", tags:["adjective"]},
+  {word:"frugal", meaning:"Sparing or economical with resources.", example:"A frugal approach saved budget.", tags:["adjective"]},
+  {word:"fundamental", meaning:"Forming a necessary base or core.", example:"Trust is fundamental to teamwork.", tags:["adjective"]},
+  {word:"futile", meaning:"Incapable of producing any useful result.", example:"Arguing was futile without data.", tags:["adjective"]},
+  {word:"genuine", meaning:"Truly what something is; authentic.", example:"A genuine apology rebuilds trust.", tags:["adjective"]},
+  {word:"gregarious", meaning:"Fond of company; sociable.", example:"He is gregarious at events.", tags:["adjective"]},
+  {word:"hinder", meaning:"Create difficulties for; delay.", example:"Bugs hinder progress.", tags:["verb"]},
+  {word:"hypothesis", meaning:"A proposed explanation made as a starting point.", example:"We formed a hypothesis for the outage.", tags:["noun"]},
+  {word:"imminent", meaning:"About to happen.", example:"Dark clouds signaled imminent rain.", tags:["adjective"]},
+  {word:"impartial", meaning:"Treating all rivals or disputants equally.", example:"Judges must remain impartial.", tags:["adjective"]},
+  {word:"imperative", meaning:"Of vital importance; crucial.", example:"Encryption is imperative for privacy.", tags:["adjective"]},
+  {word:"incentive", meaning:"A thing that motivates or encourages someone.", example:"Bonuses provide a strong incentive.", tags:["noun"]},
+  {word:"incessant", meaning:"Continuing without pause or interruption.", example:"The incessant noise was distracting.", tags:["adjective"]},
+  {word:"incisive", meaning:"Intelligently analytical and clear-thinking.", example:"Her incisive questions clarified the plan.", tags:["adjective"]},
+  {word:"inclusive", meaning:"Not excluding any section of society.", example:"We strive for an inclusive culture.", tags:["adjective"]},
+  {word:"inference", meaning:"A conclusion reached on the basis of evidence.", example:"From the logs, the inference was clear.", tags:["noun"]},
+  {word:"ingenuity", meaning:"Cleverness, inventiveness.", example:"Ingenuity turned constraints into features.", tags:["noun"]},
+  {word:"inhibit", meaning:"Hinder, restrain, or prevent.", example:"Cold weather can inhibit growth.", tags:["verb"]},
+  {word:"innate", meaning:"Inborn; natural.", example:"She has an innate sense of rhythm.", tags:["adjective"]},
+  {word:"innovate", meaning:"Make changes by introducing new methods.", example:"We innovate to stay competitive.", tags:["verb"]},
+  {word:"insight", meaning:"Accurate and deep understanding.", example:"Dashboards provide insight into usage.", tags:["noun"]},
+  {word:"integrity", meaning:"The quality of being honest and having strong principles.", example:"Integrity builds long-term trust.", tags:["noun"]},
+  {word:"interim", meaning:"In or for the intervening period; temporary.", example:"An interim report is due Monday.", tags:["adjective"]},
+  {word:"intuitive", meaning:"Using what one feels to be true even without reasoning.", example:"The app’s navigation is intuitive.", tags:["adjective"]},
+  {word:"irate", meaning:"Feeling or characterized by great anger.", example:"An irate customer demanded support.", tags:["adjective"]},
+  {word:"itinerary", meaning:"A planned route or journey.", example:"The itinerary includes three cities.", tags:["noun"]},
+  {word:"judicious", meaning:"Having good judgment.", example:"Be judicious in using production data.", tags:["adjective"]},
+  {word:"keen", meaning:"Having or showing eagerness or enthusiasm; sharp.", example:"She has a keen eye for detail.", tags:["adjective"]},
+  {word:"kinetic", meaning:"Relating to motion.", example:"Kinetic energy increases with speed.", tags:["adjective"]},
+  {word:"latent", meaning:"Existing but not yet developed; hidden.", example:"Latent bugs surfaced under load.", tags:["adjective"]},
+  {word:"laudable", meaning:"Deserving praise.", example:"A laudable effort by volunteers.", tags:["adjective"]},
+  {word:"leverage", meaning:"Use something to maximum advantage.", example:"Leverage data to guide decisions.", tags:["verb"]},
+  {word:"lucid", meaning:"Expressed clearly; easy to understand.", example:"A lucid explanation won buy-in.", tags:["adjective"]},
+  {word:"lucrative", meaning:"Producing a great deal of profit.", example:"Consulting proved lucrative.", tags:["adjective"]},
+  {word:"mandate", meaning:"An official order or commission.", example:"The board issued a mandate to cut costs.", tags:["noun"]},
+  {word:"meticulous", meaning:"Very careful and precise.", example:"QA is meticulous about edge cases.", tags:["adjective"]},
+  {word:"mitigate", meaning:"Make less severe or serious.", example:"We mitigated risk with feature flags.", tags:["verb"]},
+  {word:"novice", meaning:"A person new to or inexperienced in a field.", example:"The novice coder asked for help.", tags:["noun"]},
+  {word:"nuance", meaning:"A subtle difference in meaning or expression.", example:"Tone adds nuance to feedback.", tags:["noun"]},
+  {word:"objective", meaning:"Not influenced by personal feelings; a goal.", example:"We need objective metrics.", tags:["adjective","noun"]},
+  {word:"obsolete", meaning:"No longer produced or used; out of date.", example:"The API became obsolete after v3.", tags:["adjective"]},
+  {word:"obstinate", meaning:"Stubbornly refusing to change.", example:"He was obstinate about the design.", tags:["adjective"]},
+  {word:"omit", meaning:"Leave out or exclude.", example:"Please don’t omit key steps.", tags:["verb"]},
+  {word:"onerous", meaning:"Involving a great deal of effort.", example:"The migration was onerous but necessary.", tags:["adjective"]},
+  {word:"opaque", meaning:"Not transparent; hard to understand.", example:"Opaque pricing frustrates buyers.", tags:["adjective"]},
+  {word:"optimistic", meaning:"Hopeful and confident about the future.", example:"The team is optimistic after the demo.", tags:["adjective"]},
+  {word:"ornate", meaning:"Elaborately decorated.", example:"An ornate gate marked the entrance.", tags:["adjective"]},
+  {word:"orthodox", meaning:"Conforming to what is traditionally accepted.", example:"An orthodox view of security was adopted.", tags:["adjective"]},
+  {word:"paradigm", meaning:"A typical example or pattern; model.", example:"We need a new paradigm for support.", tags:["noun"]},
+  {word:"paramount", meaning:"More important than anything else.", example:"User safety is paramount.", tags:["adjective"]},
+  {word:"parsimonious", meaning:"Unwilling to spend money or use resources.", example:"A parsimonious budget limited R&D.", tags:["adjective"]},
+  {word:"pertinent", meaning:"Relevant or applicable to a matter.", example:"Ask only pertinent questions.", tags:["adjective"]},
+  {word:"pessimistic", meaning:"Tending to see the worst aspect.", example:"He is pessimistic about timelines.", tags:["adjective"]},
+  {word:"plausible", meaning:"Seeming reasonable or probable.", example:"It’s plausible the bug is race-related.", tags:["adjective"]},
+  {word:"pragmatic", meaning:"Dealing with things sensibly and realistically.", example:"A pragmatic approach reduced scope.", tags:["adjective"]},
+  {word:"precise", meaning:"Marked by exactness and accuracy.", example:"Provide precise reproduction steps.", tags:["adjective"]},
+  {word:"precursor", meaning:"A person or thing that comes before another of the same kind.", example:"Email was a precursor to chats.", tags:["noun"]},
+  {word:"predicament", meaning:"A difficult, unpleasant situation.", example:"We’re in a predicament with costs.", tags:["noun"]},
+  {word:"prelude", meaning:"An action serving as an introduction.", example:"A pilot is a prelude to rollout.", tags:["noun"]},
+  {word:"prevalent", meaning:"Widespread in a particular area or time.", example:"Remote work is prevalent now.", tags:["adjective"]},
+  {word:"pristine", meaning:"In its original condition; unspoiled.", example:"The park remained pristine.", tags:["adjective"]},
+  {word:"prudent", meaning:"Acting with care and thought for the future.", example:"Keeping reserves is prudent.", tags:["adjective"]},
+  {word:"punctual", meaning:"Happening or doing something at the agreed time.", example:"Be punctual for the client call.", tags:["adjective"]},
+  {word:"quantify", meaning:"Express or measure the quantity of.", example:"Quantify impact before prioritizing.", tags:["verb"]},
+  {word:"quell", meaning:"Put an end to (a rebellion or disorder).", example:"Clear answers quelled rumors.", tags:["verb"]},
+  {word:"quintessential", meaning:"Representing the most perfect example of a quality.", example:"It was the quintessential startup story.", tags:["adjective"]},
+  {word:"rational", meaning:"Based on reason or logic.", example:"Make a rational decision with data.", tags:["adjective"]},
+  {word:"reconcile", meaning:"Restore friendly relations; make consistent.", example:"We reconciled the figures after audit.", tags:["verb"]},
+  {word:"redundant", meaning:"No longer needed or useful; superfluous.", example:"Two tools were redundant.", tags:["adjective"]},
+  {word:"refute", meaning:"To prove a statement wrong.", example:"Logs refuted the initial claim.", tags:["verb"]},
+  {word:"relinquish", meaning:"Voluntarily cease to keep; give up.", example:"She relinquished control of the repo.", tags:["verb"]},
+  {word:"reluctant", meaning:"Unwilling and hesitant.", example:"He was reluctant to escalate.", tags:["adjective"]},
+  {word:"remedy", meaning:"A means of counteracting or eliminating something undesirable.", example:"A rollback was the remedy.", tags:["noun"]},
+  {word:"resilient", meaning:"Able to withstand or recover quickly.", example:"A resilient system auto-recovers.", tags:["adjective"]},
+  {word:"scrutinize", meaning:"Examine or inspect closely.", example:"Scrutinize contracts before signing.", tags:["verb"]},
+  {word:"serene", meaning:"Calm, peaceful, and untroubled.", example:"A serene walk cleared her mind.", tags:["adjective"]},
+  {word:"spontaneous", meaning:"Performed by sudden impulse.", example:"A spontaneous idea improved the plan.", tags:["adjective"]},
+  {word:"stringent", meaning:"Strict and precise.", example:"Stringent checks prevent fraud.", tags:["adjective"]},
+  {word:"substantiate", meaning:"Provide evidence to support a truth.", example:"Metrics substantiate our claims.", tags:["verb"]},
+  {word:"succinct", meaning:"Briefly and clearly expressed.", example:"Keep the update succinct.", tags:["adjective"]},
+  {word:"tangible", meaning:"Perceptible by touch; clear and definite.", example:"We saw tangible results in a week.", tags:["adjective"]},
+  {word:"tenacious", meaning:"Tending to keep a firm hold; persistent.", example:"A tenacious effort solved the bug.", tags:["adjective"]},
+  {word:"tentative", meaning:"Not certain or fixed; provisional.", example:"A tentative date is October 2.", tags:["adjective"]},
+  {word:"tranquil", meaning:"Free from disturbance; calm.", example:"The lake looked tranquil at dawn.", tags:["adjective"]},
+  {word:"transparent", meaning:"Easy to perceive or detect; open.", example:"Be transparent about limitations.", tags:["adjective"]},
+  {word:"ubiquitous", meaning:"Present everywhere; very common.", example:"Smartphones are ubiquitous now.", tags:["adjective"]},
+  {word:"validate", meaning:"Check or prove the validity of; make valid.", example:"Validate inputs on the server too.", tags:["verb"]},
+  {word:"versatile", meaning:"Able to adapt or be adapted for many functions.", example:"A versatile tool saves time.", tags:["adjective"]},
+  {word:"viable", meaning:"Capable of working successfully.", example:"Is the plan financially viable?", tags:["adjective"]},
+  {word:"vigilant", meaning:"Keeping careful watch for danger.", example:"Be vigilant against phishing.", tags:["adjective"]},
+  {word:"vulnerable", meaning:"Exposed to the possibility of harm.", example:"Unpatched servers are vulnerable.", tags:["adjective"]},
+  {word:"wane", meaning:"Decrease in vigor, power, or extent.", example:"Interest waned after the hype.", tags:["verb"]},
+  {word:"warrant", meaning:"Justify or necessitate; a legal authorization.", example:"The risk warrants extra testing.", tags:["verb","noun"]},
+  {word:"wary", meaning:"Feeling or showing caution.", example:"Be wary of too-good deals.", tags:["adjective"]},
+  {word:"zealous", meaning:"Having great energy or enthusiasm for a cause.", example:"Zealous volunteers stayed late.", tags:["adjective"]}
+];
+
+/* Merge with any saved custom entries, keeping built-in if user cleared storage. */
+const saved = getSavedEntries();
+let state = {
+  entries: saved && saved.length ? saved.map(normalizeEntry) : [...BUILT_IN_ENTRIES].map(normalizeEntry),
+  filtered: [],
+  selectedIndex: -1,
+  lastSpoken: null
+};
+
+/* =========================
+   DOM + Rendering
+   ========================= */
+const $ = sel => document.querySelector(sel);
+const listPane = $("#listPane");
+const detailPane = $("#detailPane");
+const searchBox = $("#searchBox");
+
+function renderList(){
+  const q = searchBox.value.trim().toLowerCase();
+
+  state.filtered = state.entries
+    .filter(e => {
+      if(!q) return true;
+      const hay = [
+        e.word, e.meaning, e.example,
+        e.hindi.translation, e.hindi.sentence,
+        e.french.translation, e.french.sentence,
+        e.german.translation, e.german.sentence
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    })
+    .sort((a,b)=> a.word.localeCompare(b.word));
+
+  listPane.innerHTML = "";
+  if(!state.filtered.length){
+    const empty = document.createElement("div");
+    empty.className="pill";
+    empty.textContent = "No results. Try another word or add your own entry.";
+    listPane.appendChild(empty);
+    return;
+  }
+
+  state.filtered.forEach((e,idx)=>{
+    const row = document.createElement("div");
+    row.className = "word";
+    row.tabIndex = 0;
+    row.setAttribute("role","button");
+    const hasAnyTranslation = !!(e.hindi.translation || e.french.translation || e.german.translation);
+    row.innerHTML = `
+      <div class="grow">
+        <div class="w">${escapeHtml(e.word)}</div>
+        <div class="muted mono">${escapeHtml(truncate(e.meaning, 120))}</div>
+      </div>
+      <div class="stack">
+        ${hasAnyTranslation ? `<span class="badge">HI/FR/DE</span>` : ""}
+        ${e.tags && e.tags.length ? e.tags.map(t=>`<span class="badge">${escapeHtml(t)}</span>`).join(""):""}
+      </div>
+    `;
+    row.addEventListener("click", ()=> { selectIndex(idx); });
+    row.addEventListener("keydown", ev=>{
+      if(ev.key==="Enter" || ev.key===" "){ ev.preventDefault(); selectIndex(idx); }
+    });
+    listPane.appendChild(row);
+  });
+}
+
+function renderTranslationsBlock(e){
+  const parts = [];
+  function block(label, lang){
+    const has = !!(lang.translation || lang.sentence);
+    if(!has) return "";
+    return `
+      <div class="langline">
+        <div class="langname">${label}: ${escapeHtml(lang.translation || "—")}</div>
+        ${lang.sentence ? `<div class="tsent muted">“${escapeHtml(lang.sentence)}”</div>` : ""}
+      </div>
+    `;
+  }
+  const hi = block("Hindi", e.hindi || {});
+  const fr = block("French", e.french || {});
+  const de = block("German", e.german || {});
+  const any = hi || fr || de;
+  if(!any) return "";
+  return `
+    <div class="hr"></div>
+    <div>
+      <strong>Translations:</strong>
+      <div class="tblock">
+        ${hi}${fr}${de}
+      </div>
+    </div>
+  `;
+}
+
+function selectIndex(idx){
+  if(idx<0 || idx>=state.filtered.length) return;
+  state.selectedIndex = idx;
+  const e = state.filtered[idx];
+  detailPane.innerHTML = `
+    <h2 id="dWord">${escapeHtml(e.word)}</h2>
+    <div class="muted">Tags: ${(e.tags && e.tags.length)? e.tags.map(t=>`<span class="badge">${escapeHtml(t)}</span>`).join(" "):"<span class='badge'>general</span>"}</div>
+    <div class="hr"></div>
+    <div>
+      <strong>Meaning:</strong>
+      <p>${escapeHtml(e.meaning || "—")}</p>
+      ${e.example ? `<strong>Example:</strong><p class="muted">“${escapeHtml(e.example)}”</p>`:""}
+    </div>
+    ${renderTranslationsBlock(e)}
+    <div class="hr"></div>
+    <div class="row">
+      <button id="speakNow">🔊 Speak</button>
+      <button id="editBtn">✏️ Edit</button>
+      <button id="deleteBtn" class="danger">🗑️ Delete</button>
+    </div>
+  `;
+  $("#speakNow").addEventListener("click", speakSelected);
+  $("#editBtn").addEventListener("click", ()=> editEntry(e));
+  $("#deleteBtn").addEventListener("click", ()=> deleteEntry(e));
+}
+
+function editEntry(entry){
+  const word = prompt("Word:", entry.word);
+  if(!word) return;
+  const meaning = prompt("Meaning:", entry.meaning ?? "");
+  if(meaning===null) return;
+  const example = prompt("Example sentence (English):", entry.example ?? "");
+  if(example===null) return;
+
+  // Translations + sentences
+  const hiTr = prompt("Hindi translation:", entry.hindi?.translation ?? "");
+  if(hiTr===null) return;
+  const hiSe = prompt("Hindi example sentence:", entry.hindi?.sentence ?? "");
+  if(hiSe===null) return;
+
+  const frTr = prompt("French translation:", entry.french?.translation ?? "");
+  if(frTr===null) return;
+  const frSe = prompt("French example sentence:", entry.french?.sentence ?? "");
+  if(frSe===null) return;
+
+  const deTr = prompt("German translation:", entry.german?.translation ?? "");
+  if(deTr===null) return;
+  const deSe = prompt("German example sentence:", entry.german?.sentence ?? "");
+  if(deSe===null) return;
+
+  const tagsRaw = prompt("Tags (comma-separated):", (entry.tags||[]).join(", "));
+  if(tagsRaw===null) return;
+  const tags = (tagsRaw||"").split(",").map(s=>s.trim()).filter(Boolean).slice(0,3);
+
+  // Find and replace in state.entries
+  const idx = state.entries.findIndex(e=>e.word.toLowerCase()===entry.word.toLowerCase());
+  if(idx>-1){
+    state.entries[idx] = normalizeEntry({
+      word, meaning, example, tags,
+      hindi: { translation: hiTr, sentence: hiSe },
+      french: { translation: frTr, sentence: frSe },
+      german: { translation: deTr, sentence: deSe }
+    });
+    persistAndRefresh();
+  }
+}
+
+function deleteEntry(entry){
+  if(!confirm(`Delete “${entry.word}”?`)) return;
+  state.entries = state.entries.filter(e=>!(e.word.toLowerCase()===entry.word.toLowerCase() && e.meaning===entry.meaning));
+  persistAndRefresh();
+}
+
+function persistAndRefresh(){
+  saveEntries(state.entries);
+  renderList();
+  if(state.filtered.length){
+    const keep = Math.min(state.filtered.length-1, state.selectedIndex);
+    selectIndex(keep);
+  }else{
+    detailPane.innerHTML = `<h2>All set ✅</h2><div class="muted">Use search or add words.</div>`;
+  }
+}
+
+function truncate(s,max){ s = String(s||""); return s.length>max ? s.slice(0,max-1)+"…" : s; }
+function escapeHtml(s){ s = String(s||""); return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* =========================
+   Voice: Search + TTS
+   ========================= */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+
+function startVoiceSearch(){
+  if(!SpeechRecognition){ alert("Voice recognition not supported in this browser."); return; }
+  const rec = new SpeechRecognition();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onresult = (ev)=>{
+    const text = ev.results[0][0].transcript;
+    searchBox.value = text;
+    renderList();
+    if(state.filtered.length){ selectIndex(0); }
+  };
+  rec.onerror = ()=>{};
+  rec.start();
+}
+
+function speak(text){
+  if(!synth){ alert("Speech synthesis not supported."); return; }
+  if(synth.speaking) synth.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.0; utter.pitch = 1.0; utter.lang = "en-US";
+  synth.speak(utter);
+}
+
+function speakSelected(){
+  const e = state.filtered[state.selectedIndex];
+  if(!e){ alert("Select a word first."); return; }
+  const lines = [
+    `${e.word}. Meaning: ${e.meaning}.`,
+    e.example ? `English example: ${e.example}.` : "",
+    e.hindi?.translation ? `Hindi: ${e.hindi.translation}. ${e.hindi.sentence||""}` : "",
+    e.french?.translation ? `French: ${e.french.translation}. ${e.french.sentence||""}` : "",
+    e.german?.translation ? `German: ${e.german.translation}. ${e.german.sentence||""}` : ""
+  ].filter(Boolean).join(" ");
+  speak(lines);
+}
+
+/* =========================
+   Import / Export
+   ========================= */
+function exportJson(){
+  const blob = new Blob([JSON.stringify(state.entries, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "dictionary-entries.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importJson(file){
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      if(!Array.isArray(data)) throw new Error("Invalid format");
+      const normalized = data.map(normalizeEntry).filter(e=>e.word && e.meaning);
+      // Merge by word (case-insensitive), imported entries take precedence
+      const map = new Map();
+      state.entries.forEach(e=> map.set(e.word.toLowerCase(), e));
+      normalized.forEach(e=> map.set(e.word.toLowerCase(), e));
+      state.entries = Array.from(map.values()).sort((a,b)=> a.word.localeCompare(b.word));
+      persistAndRefresh();
+      alert(`Imported ${normalized.length} entries.`);
+    }catch(err){ alert("Import failed: " + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+/* =========================
+   Add New Entry
+   ========================= */
+function addEntry(){
+  const word = prompt("Word:"); if(word===null || !word.trim()) return;
+  const meaning = prompt("Meaning:"); if(meaning===null) return;
+  const example = prompt("Example sentence (English):") || "";
+
+  const hiTr = prompt("Hindi translation (optional):") || "";
+  const hiSe = prompt("Hindi example sentence (optional):") || "";
+
+  const frTr = prompt("French translation (optional):") || "";
+  const frSe = prompt("French example sentence (optional):") || "";
+
+  const deTr = prompt("German translation (optional):") || "";
+  const deSe = prompt("German example sentence (optional):") || "";
+
+  const tagsRaw = prompt("Tags (comma-separated, optional):") || "";
+  const tags = tagsRaw.split(",").map(s=>s.trim()).filter(Boolean).slice(0,3);
+
+  const e = normalizeEntry({
+    word, meaning, example, tags,
+    hindi: { translation: hiTr, sentence: hiSe },
+    french: { translation: frTr, sentence: frSe },
+    german: { translation: deTr, sentence: deSe }
+  });
+
+  // Upsert by word (case-insensitive)
+  const idx = state.entries.findIndex(x=>x.word.toLowerCase()===e.word.toLowerCase());
+  if(idx>-1) state.entries[idx]=e; else state.entries.push(e);
+  persistAndRefresh();
+  // Focus new entry
+  const i = state.filtered.findIndex(x=>x.word.toLowerCase()===e.word.toLowerCase());
+  if(i>-1) selectIndex(i);
+}
+
+/* =========================
+   Theme + Hotkeys
+   ========================= */
+const toggleThemeBtn = $("#toggleTheme");
+function applyInitialTheme(){
+  const pref = localStorage.getItem("theme_pref_v1");
+  if(pref==="dark" || (pref===null && window.matchMedia("(prefers-color-scheme: dark)").matches)){
+    document.documentElement.classList.add("dark");
+  }
+}
+function toggleTheme(){
+  document.documentElement.classList.toggle("dark");
+  localStorage.setItem("theme_pref_v1", document.documentElement.classList.contains("dark") ? "dark":"light");
+}
+
+/* =========================
+   Wire-up
+   ========================= */
+document.addEventListener("DOMContentLoaded", ()=>{
+  applyInitialTheme();
+  renderList();
+  if(state.filtered.length) selectIndex(0);
+
+  searchBox.addEventListener("input", ()=> renderList());
+  searchBox.addEventListener("keydown", (e)=>{
+    if(e.key==="ArrowDown"){ e.preventDefault(); if(state.filtered.length){ selectIndex(Math.min(state.selectedIndex+1, state.filtered.length-1)); } }
+    if(e.key==="ArrowUp"){ e.preventDefault(); if(state.filtered.length){ selectIndex(Math.max(state.selectedIndex-1, 0)); } }
+    if(e.key==="Enter"){ e.preventDefault(); if(state.selectedIndex>-1) selectIndex(state.selectedIndex); }
+    if(e.key==="Escape"){ searchBox.value=""; renderList(); }
+  });
+
+  $("#voiceSearch").addEventListener("click", startVoiceSearch);
+  $("#speakBtn").addEventListener("click", speakSelected);
+  $("#addBtn").addEventListener("click", addEntry);
+  $("#exportBtn").addEventListener("click", exportJson);
+  $("#importInput").addEventListener("change", e=> { if(e.target.files?.[0]) importJson(e.target.files[0]); e.target.value=""; });
+  $("#resetBtn").addEventListener("click", resetToBuiltIn);
+  toggleThemeBtn.addEventListener("click", toggleTheme);
+
+  // Hotkeys
+  document.addEventListener("keydown",(e)=>{
+    if(e.target === searchBox) return;
+    const k = e.key.toLowerCase();
+    if(k==="t"){ toggleTheme(); }
+    if(k==="v"){ startVoiceSearch(); }
+    if(k==="r"){ speakSelected(); }
+    if(k==="a"){ addEntry(); }
+    if(k==="/"){ e.preventDefault(); searchBox.focus(); }
+  });
+});
+</script>
+</body>
+</html>
